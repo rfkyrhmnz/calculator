@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Interactive Web Calculator</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono&display=swap');
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    font-family: 'Roboto Mono', monospace;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+  }
+  .calculator {
+    background: #1e1e2f;
+    border-radius: 15px;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+    padding: 20px;
+    width: 320px;
+  }
+  .display {
+    background: #2c2c3d;
+    color: #fff;
+    font-size: 2.4rem;
+    border-radius: 12px;
+    padding: 15px 20px;
+    text-align: right;
+    overflow-x: auto;
+    user-select: none;
+    margin-bottom: 20px;
+    min-height: 50px;
+  }
+  .buttons {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 15px;
+  }
+  button {
+    background: #444466;
+    border: none;
+    border-radius: 10px;
+    color: #eee;
+    font-size: 1.6rem;
+    padding: 18px 0;
+    transition: background 0.3s, transform 0.1s;
+    cursor: pointer;
+    user-select: none;
+    box-shadow: 0 4px 10px rgb(0 0 0 / 0.2);
+  }
+  button:hover {
+    background: #5a5a8a;
+  }
+  button:active {
+    transform: scale(0.95);
+  }
+  button.operator {
+    background: #ff884d;
+    color: #fff;
+    font-weight: 600;
+  }
+  button.operator:hover {
+    background: #ffa366;
+  }
+  button.clear {
+    background: #ff5252;
+    font-weight: 700;
+  }
+  button.clear:hover {
+    background: #ff7777;
+  }
+  button.equals {
+    background: #48c774;
+    grid-column: span 2;
+    font-weight: 700;
+  }
+  button.equals:hover {
+    background: #6de08c;
+  }
+  /* Scrollbar for display */
+  .display::-webkit-scrollbar {
+    height: 6px;
+  }
+  .display::-webkit-scrollbar-thumb {
+    background-color: #666;
+    border-radius: 3px;
+  }
+</style>
+</head>
+<body>
+  <div class="calculator" role="main" aria-label="Calculator">
+    <div class="display" id="display" aria-live="polite" aria-atomic="true"></div>
+    <div class="buttons">
+      <button class="clear" id="clear" aria-label="Clear">C</button>
+      <button class="operator" data-value="/" aria-label="Divide">÷</button>
+      <button class="operator" data-value="*" aria-label="Multiply">×</button>
+      <button class="operator" data-value="-" aria-label="Subtract">−</button>
+
+      <button data-value="7" aria-label="7">7</button>
+      <button data-value="8" aria-label="8">8</button>
+      <button data-value="9" aria-label="9">9</button>
+      <button class="operator" data-value="+" aria-label="Add">+</button>
+      
+      <button data-value="4" aria-label="4">4</button>
+      <button data-value="5" aria-label="5">5</button>
+      <button data-value="6" aria-label="6">6</button>
+      <button data-value="(" aria-label="Open parenthesis">(</button>
+
+      <button data-value="1" aria-label="1">1</button>
+      <button data-value="2" aria-label="2">2</button>
+      <button data-value="3" aria-label="3">3</button>
+      <button data-value=")" aria-label="Close parenthesis">)</button>
+
+      <button data-value="0" aria-label="0">0</button>
+      <button data-value="." aria-label="Decimal point">.</button>
+      <button class="equals" id="equals" aria-label="Equals">=</button>
+    </div>
+  </div>
+<script>
+  (function() {
+    const display = document.getElementById('display');
+    const buttons = document.querySelectorAll('.buttons button');
+    let expression = '';
+
+    function updateDisplay() {
+      display.textContent = expression || '0';
+    }
+
+    function appendValue(value) {
+      // Prevent multiple operators in a row except parentheses and decimal handling
+      const operators = ['+', '-', '*', '/'];
+      const lastChar = expression.slice(-1);
+
+      // Basic sanitization: do not allow consecutive operators (except for parentheses and minus)
+      if (operators.includes(value)) {
+        if (expression === '' && value !== '-') {
+          // Do not allow operator as first char except minus for negative numbers
+          return;
+        }
+        // Replace last operator with new if last char is operator
+        if (operators.includes(lastChar)) {
+          expression = expression.slice(0, -1) + value;
+          return;
+        }
+      }
+
+      // Only allow one decimal point in a number (checking from last operator)
+      if (value === '.') {
+        const parts = expression.split(/[\+\-\*\/\(\)]/);
+        const lastPart = parts[parts.length - 1];
+        if (lastPart.includes('.')) {
+          return; // block multiple decimals in current number
+        }
+        if (lastPart === '') {
+          expression += '0';
+        }
+      }
+
+      expression += value;
+    }
+
+    function clearExpression() {
+      expression = '';
+    }
+
+    function calculate() {
+      try {
+        // Use Function constructor for safe evaluation instead of eval()
+        // Replace unicode operators with JS operators if any - here we use JS symbols in eval
+        // Validate expression to only contain digits, operators and parentheses
+        if (!/^[0-9+\-*/().\s]+$/.test(expression)) {
+          throw new Error('Invalid characters');
+        }
+        // eslint-disable-next-line no-new-func
+        let result = new Function('return ' + expression)();
+        if (result === Infinity || result === -Infinity) throw new Error('Division by zero');
+        if (result === undefined) throw new Error('Invalid Expression');
+        expression = String(result);
+      } catch (e) {
+        expression = 'Error';
+      }
+    }
+
+    buttons.forEach(button => {
+      button.addEventListener('click', () => {
+        if (button.id === 'clear') {
+          clearExpression();
+        } else if (button.id === 'equals') {
+          calculate();
+        } else {
+          appendValue(button.getAttribute('data-value'));
+          if(expression === 'Error') expression = '';
+        }
+        updateDisplay();
+      });
+    });
+
+    // Initialize display
+    updateDisplay();
+
+    // Keyboard support
+    document.addEventListener('keydown', (e) => {
+      const key = e.key;
+      if ((/\d/).test(key) || ['+', '-', '*', '/', '(', ')', '.'].includes(key)) {
+        appendValue(key);
+        updateDisplay();
+      } else if (key === 'Enter' || key === '=') {
+        calculate();
+        updateDisplay();
+      } else if (key === 'Backspace') {
+        expression = expression.slice(0, -1);
+        updateDisplay();
+      } else if (key.toLowerCase() === 'c') {
+        clearExpression();
+        updateDisplay();
+      }
+    });
+  })();
+</script>
+</body>
+</html>
+
